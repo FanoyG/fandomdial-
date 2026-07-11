@@ -14,7 +14,8 @@ payload = {
     "session_id": "hackathon_test_session_99",
     "character_id": "zaid",
     "user_name": "Adil",
-    "text": "Taiyari Babu, humri bakri chori hogyii haa, cctv chal raha haa mandir ka?"
+    "text": "Taiyari Babu, humri bakri chori hogyii haa, cctv chal raha haa mandir ka?",
+    "language" : "en"
 }
 
 print(f"\nDispatching payload via HTTP POST route to /api/chat/send...")
