@@ -2,7 +2,8 @@ import logger_config
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import chat
+from app.routers import chat, voice, characters
+
 
 app = FastAPI(
     title="CC Switchboard Engine",
@@ -20,6 +21,8 @@ app.add_middleware(
 
 # Mount system endpoint routers cleanly
 app.include_router(chat.router)
+app.include_router(voice.router)
+app.include_router(characters.router)
 
 @app.get("/health")
 async def check_system_health():
