@@ -12,39 +12,34 @@ class ConversationContextBuilder:
         self.target_window_size = target_window_size
 
     def build_payload(self, full_history: list[Message]) -> list[Message]:
-        # Case A: Conversation is fresh, return everything without modification
+        # Case A: Conversation is fresh, return everything directly
         if len(full_history) <= self.target_window_size:
             return list(full_history)
 
         # Case B: Thread exceeds target window. Slice recent messages
         recent_messages = full_history[-self.target_window_size:]
-        
-        # Calculate messages dropped behind the window track
         evicted_messages = full_history[:-self.target_window_size]
         
-        # Analyze historical traits to build an implicit tracking summary directive injection 
-        character_joke_count = 0
-        user_joke_responses = 0
+        # Calculate metric attributes for the summary briefing note
+        user_joke_responses = sum(1 for msg in evicted_messages if msg.role == "user")
         
-        # Simple metadata processing calculation to stop repetitive jokes loop (Problem 5)
-        for msg in evicted_messages:
-            if msg.role == "character":
-                character_joke_count += 1
-            else:
-                user_joke_responses += 1
+        # Extract the character's last 3 spoken lines to prevent repetition (Problem 5)
+        topic_snippets = [
+            msg.content[:50] for msg in evicted_messages if msg.role == "character"
+        ][-3:]
 
-        # Craft a structural catch-up summarization briefing context instruction message
+        # Compile the context note instruction payload string
         summary_directive = (
-            f"[SYSTEM BRIEFING NOTE: This conversation is ongoing. In the older dropped part of this chat, "
-            f"you have already delivered approximately {character_joke_count} jokes/roasts, and the user has responded "
-            f"to them {user_joke_responses} times. Acknowledge this context naturally—DO NOT repeat previous punchlines "
-            f"or loop back to the same opening jokes. Continue the dialogue fluently using the recent flow below.]"
+            f"[CONTEXT NOTE: Earlier in this chat, you already said: "
+            f"{'; '.join(topic_snippets) if topic_snippets else 'general small talk'}. "
+            f"The user has replied {user_joke_responses} times since then. "
+            f"Do NOT repeat these punchlines — continue naturally from the recent messages below.]"
         )
         
-        # Construct the synthetic context array injected directly on front of the processing stream window
+        # Injected as "user" to prevent confusing Gemini's dialogue role mapping
         synthetic_context = [
-            Message(role="character", content=summary_directive)
+            Message(role="user", content=summary_directive)
         ] + recent_messages
 
-        logger.info(f"Context builder condensed history down from {len(full_history)} items into a smart optimized slice window.")
+        logger.info(f"Context builder successfully generated an optimized payload slice from {len(full_history)} historic turns.")
         return synthetic_context
