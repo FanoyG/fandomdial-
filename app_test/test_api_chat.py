@@ -12,13 +12,13 @@ print(f" -> System Health Ping Status: {health_check.status_code} (Expected: 200
 # 2. Fire mock JSON data down into our active API route endpoint
 payload = {
     "session_id": "hackathon_test_session_99",
-    "character_id": "sachiv_ji",
+    "character_id": "zaid",
     "user_name": "Adil",
     "text": "Taiyari Babu, humri bakri chori hogyii haa, cctv chal raha haa mandir ka?"
 }
 
 print(f"\nDispatching payload via HTTP POST route to /api/chat/send...")
-print(f"Testing Character ID: '{payload['character_id']}' (Sachiv Ji)")
+print(f"Testing Character ID: '{payload['character_id']}' (Zaid)")
 print(f"User Input text: '{payload['text']}'")
 
 response = client.post("/api/chat/send", json=payload)

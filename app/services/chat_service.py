@@ -29,7 +29,7 @@ class ChatService:
         session_key = f"{session_id}_{character_id}"
 
         # Save incoming validated User input into the permanent preservation store
-        user_message = Message(role="user", content=f"{user_name}: {user_text}")
+        user_message = Message(role="user", content=user_text)
         self.session_store.append_message(session_key, user_message)
 
         # Retrieve full conversation log context and slice it into an optimized window payload
