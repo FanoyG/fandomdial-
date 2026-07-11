@@ -8,7 +8,7 @@ class AIProvider(ABC):
     Ensures that our business logic layers do not directly bind to specific cloud SDKs.
     """
     @abstractmethod
-    def generate_reply(self, character: Character, optimized_history: list[Message]) -> str:
+    def generate_reply(self, character: Character, optimized_history: list[Message], language: str = "hi") -> str:
         """
         Processes an optimized, context-built message log array to return a 
         personality-consistent text response string from the AI model.

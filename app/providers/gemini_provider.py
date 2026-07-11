@@ -16,9 +16,9 @@ class GeminiProvider(AIProvider):
             
         self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
         # Order of execution models to loop over if one experiences a 503/429 load spike
-        self.model_fallback_chain = ["gemini-3.5-flash", "gemini-3.1-flash-lite"]
+        self.model_fallback_chain = ["gemini-3.1-flash-lite", "gemini-3.5-flash"]
 
-    def generate_reply(self, character: Character, optimized_history: list[Message]) -> str:
+    def generate_reply(self, character: Character, optimized_history: list[Message], language: str="hi") -> str:
         formatted_contents = []
         for msg in optimized_history:
             gemini_role = "model" if msg.role == "character" else "user"
@@ -62,6 +62,16 @@ class GeminiProvider(AIProvider):
             "Do not use external copyrighted properties or show titles in your response."
         )
 
+        # LANGUAGE ACCENT SWITCHER BLOCK INJECTION
+        if language == "en":
+            enforcement_suffix += (
+                "\nIMPORTANT: Respond in plain, natural English only. Do not use Hindi or Hinglish words."
+            )
+        else:
+            enforcement_suffix += (
+                "\nIMPORTANT: Respond in natural Hinglish (Hindi words written in Roman/English script), casual and conversational."
+            )
+
         # Loop down your resilient fallback chain models
         for model_name in self.model_fallback_chain:
             try:
@@ -80,7 +90,7 @@ class GeminiProvider(AIProvider):
                     return response.text.strip()
                     
             except Exception as target_error:
-                logger.info(f" -> Line busy on model tier '{model_name}'. Re-routing call automatically...")
+                logger.info(f" -> Line busy on model tier '{model_name}': {str(target_error)}. Re-routing call automatically...")
                 continue # Failover target failed, loop to the next option automatically
 
         # Terminal Fallback Layer (Updated to support Gullu, Sohail, and Zaid)
