@@ -7,6 +7,7 @@ from app.providers.gemini_provider import GeminiProvider
 from app.services.chat_service import ChatService
 from app.services.message_splitter import split_into_bubbles
 from app.services.rate_limiter import RateLimiter
+from app.services.voice_trigger import VoiceTriggerDecider
 
 router = APIRouter(prefix="/api/chat", tags=["Chat Engine"])
 
@@ -16,6 +17,8 @@ session_storage = InMemorySessionStore(max_stored=200)
 context_processor = ConversationContextBuilder(target_window_size=8)
 ai_engine = GeminiProvider()
 rate_guard = RateLimiter(max_requests=12, window_seconds=60)
+voice_trigger = VoiceTriggerDecider(probability=0.2)  # ~1-in-5 replies auto-play as voice
+
 
 def get_chat_service() -> ChatService:
     return ChatService(
@@ -45,7 +48,7 @@ async def send_chat_message(payload: ChatInput, service: ChatService = Depends(g
         )
 
         reply_bubbles = split_into_bubbles(reply_string, max_parts=3)
-        return {"status": "success", "reply": reply_string, "reply_bubbles": reply_bubbles}
+        return {"status": "success", "reply": reply_string, "reply_bubbles": reply_bubbles, "auto_voice": voice_trigger.should_auto_play()}
         
     except CharacterNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
