@@ -28,29 +28,39 @@ class GeminiProvider(AIProvider):
                     parts=[types.Part.from_text(text=msg.content)]
                 )
             )
-        # Grab the absolute newest message text from the user
+            
         last_user_message = optimized_history[-1].content if optimized_history else ""
         word_count = len(last_user_message.split())
 
-        # Rule 1: If the input is ultra short (1-2 words), force a single word/sound response
         if word_count <= 2:
             enforcement_suffix = (
                 "\n[CRITICAL LENGTH GUARDRAIL: The user sent a tiny phrase. You MUST respond with exactly "
                 "ONE single punchy word or local conversational filler sound only. Examples: 'Bhak!', 'Acha?', "
                 "'Hatt!', 'Sigh.'. Absolutely no full sentences or explanations allowed.]"
             )
-        # Rule 2: If the input is direct hostility or a sharp single sentence, return a crisp 1-line comeback
-        elif "moron" in last_user_message.lower() or "idiot" in last_user_message.lower() or word_count <= 6:
+        elif word_count <= 6:
             enforcement_suffix = (
-                "\n[CRITICAL LENGTH GUARDRAIL: Respond with exactly ONE short, sharp, biting single-sentence line. "
-                "Match their energy directly and cut the conversation off cleanly.]"
+                "\n[CRITICAL LENGTH GUARDRAIL: Respond with exactly ONE short, punchy single-sentence line, "
+                "fully in character. Let your character's own personality decide the tone naturally based on content.]"
             )
-        # Rule 3: For complex stories, village problems, or riddles, return a full 2-3 sentence humorous response
         else:
             enforcement_suffix = (
                 "\n[CRITICAL LENGTH GUARDRAIL: Respond with a full, realistic 2 to 3 sentence humorous conversational paragraph. "
                 "Do not look like a corporate robot; stay fully inside your character persona.]"
             )
+
+        # FIX: Force character-specific rules to override general guardrails
+        enforcement_suffix += (
+            "\nIMPORTANT: If this character's own persona above specifies a strict reply length "
+            "(for example, always short or always 1-2 sentences), follow that character-specific limit "
+            "instead of this general guardrail, even if the guardrail suggests a longer response."
+        )
+
+        # Enforce universal comedy engines and block culture locks globally (Problem 2)
+        enforcement_suffix += (
+            f"\nRely fully on your universal comedic mechanism: '{character.comedic_mechanism}'. "
+            "Do not use external copyrighted properties or show titles in your response."
+        )
 
         # Loop down your resilient fallback chain models
         for model_name in self.model_fallback_chain:
@@ -73,12 +83,11 @@ class GeminiProvider(AIProvider):
                 logger.info(f" -> Line busy on model tier '{model_name}'. Re-routing call automatically...")
                 continue # Failover target failed, loop to the next option automatically
 
-        # Absolute Fallback Layer (Executed only if all cloud tiers are unavailable)
+        # Terminal Fallback Layer (Updated to support Gullu, Sohail, and Zaid)
         logger.error(f"All Gemini API models in the chain are temporarily congested for character '{character.id}'")
         fallbacks = {
-            "dex": "Hold on, kid! My trainer is tape-wrapping my knuckles for the next round. Redial in a minute!",
-            "circuit": "Main database connection leak detected on deck 4. Patching firmware, hold off on telemetry requests.",
-            "uncle_verma": "Acha... listen. The electricity lines in the market are acting up. Let me fix the bulb and get back to you.",
-            "rosa": "Oh great, the phone towers are failing just like your sense of humor. Try calling again when the signal bar wakes up!"
+            "gullu": "Nahi, theek hai. Abhi network kharab hai toh kya tower pe chad ke baith jau line clear karne?",
+            "sohail": "Arre network down hai bhai! Ticket kab ka hai? Baad me call karna, paise ke alawa sab help karenge.",
+            "zaid": "Arre iska bhi jugaad hai bhai! Abhi signal chala gaya hai, do minute me bypass karta hu server, ruko."
         }
         return fallbacks.get(character.id, "The switchboard line is currently facing system network congestion. Please try again shortly.")
