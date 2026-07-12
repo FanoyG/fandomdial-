@@ -36,6 +36,25 @@ class ChatInput(BaseModel):
     text: str
     language: str = "hi"  # "hi" or "en"
 
+@router.get("/history")
+async def get_chat_history(
+    session_id: str,
+    character_id: str,
+    service: ChatService = Depends(get_chat_service),
+):
+    """
+    Returns the stored conversation for a given (session_id, character_id) pair
+    so the frontend can restore it when a user switches back to a character.
+    """
+    session_key = f"{session_id}_{character_id}"
+    history = service.session_store.get_history(session_key)
+    return {
+        "messages": [
+            {"role": msg.role, "content": msg.content}
+            for msg in history
+        ]
+    }
+
 @router.post("/send")
 async def send_chat_message(payload: ChatInput, service: ChatService = Depends(get_chat_service)):
     try:

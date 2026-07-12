@@ -28,12 +28,24 @@
   // tracks which bubble button currently owns the "active" ticket, for state resets
   let currentPlayingBtn = null;
 
+  const FILLER_INDICES = {
+    gullu: [1, 2],
+    sohail: [2],
+    zaid: [1, 2],
+  };
+
+  const CHARACTER_AVATARS = {
+    gullu: "🙂",
+    sohail: "🧔",
+    zaid: "😎",
+  };
+
   /* ---------- Profile (remembered locally) ---------- */
   const PROFILE_KEY = "fandomdial_profile";
   const DEFAULT_AVATAR =
     "data:image/svg+xml;utf8," +
     encodeURIComponent(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="%23128c7e"/><text x="50%" y="55%" font-size="34" fill="%23fff" text-anchor="middle" font-family="sans-serif">?</text></svg>'
+      '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="%23128c7e"/><text x="50%" y="55%" font-size="34" fill="%23fff" text-anchor="middle" font-family="sans-serif">?</text></svg>',
     );
 
   function loadProfile() {
@@ -73,13 +85,47 @@
   const langToggleEl = document.getElementById("lang-toggle");
 
   const profileModalEl = document.getElementById("profile-modal");
-  const profileAvatarPreviewEl = document.getElementById("profile-avatar-preview");
+  const profileAvatarPreviewEl = document.getElementById(
+    "profile-avatar-preview",
+  );
   const avatarInputEl = document.getElementById("avatar-input");
   const nameInputEl = document.getElementById("name-input");
   const profileSaveBtnEl = document.getElementById("profile-save-btn");
   const profileCancelBtnEl = document.getElementById("profile-cancel-btn");
   const settingsBtnEl = document.getElementById("settings-btn");
   const myProfileEl = document.getElementById("my-profile");
+
+  function getCharacterAvatar(charOrId) {
+    const id =
+      typeof charOrId === "string" ? charOrId : charOrId && charOrId.id;
+    if (!id) return "🙂";
+    return CHARACTER_AVATARS[id] || (id.charAt(0) || "🙂").toUpperCase();
+  }
+
+  function formatMessageTime(date = new Date()) {
+    return new Intl.DateTimeFormat(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+      .format(date)
+      .toLowerCase();
+  }
+
+  function updateChatHeader(char) {
+    chatCharacterNameEl.innerHTML = "";
+
+    const avatar = document.createElement("span");
+    avatar.className = "chat-header-avatar";
+    avatar.textContent = getCharacterAvatar(char);
+
+    const name = document.createElement("span");
+    name.className = "chat-header-name";
+    name.textContent = (char && char.name) || "";
+
+    chatCharacterNameEl.appendChild(avatar);
+    chatCharacterNameEl.appendChild(name);
+  }
 
   /* ---------- Profile modal wiring ---------- */
   let pendingAvatarDataUrl = null;
@@ -143,7 +189,7 @@
 
       const avatar = document.createElement("div");
       avatar.className = "contact-avatar";
-      avatar.textContent = (char.name || "?").charAt(0);
+      avatar.textContent = getCharacterAvatar(char);
 
       const meta = document.createElement("div");
       meta.className = "contact-meta";
@@ -166,7 +212,7 @@
     });
   }
 
-  function selectCharacter(char) {
+  async function selectCharacter(char) {
     activeCharacter = char;
     stopCurrentAudio();
 
@@ -176,9 +222,36 @@
 
     emptyStateEl.classList.add("hidden");
     chatActiveEl.classList.remove("hidden");
-    chatCharacterNameEl.textContent = char.name;
+    updateChatHeader(char);
     messagesEl.innerHTML = "";
+
+    await restoreHistory(char);
+
     textInputEl.focus();
+  }
+
+  async function restoreHistory(char) {
+    try {
+      const url =
+        "/api/chat/history?session_id=" +
+        encodeURIComponent(sessionId) +
+        "&character_id=" +
+        encodeURIComponent(char.id);
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = await res.json();
+      const hasVoice = !!char.has_voice;
+
+      data.messages.forEach((msg) => {
+        if (msg.role === "user") {
+          appendUserBubble(msg.content);
+        } else {
+          appendCharacterBubble(msg.content, hasVoice);
+        }
+      });
+    } catch (e) {
+      // History restore failed — not fatal, chat just starts empty
+    }
   }
 
   /* ---------- Language toggle ---------- */
@@ -245,12 +318,30 @@
   function appendUserBubble(text) {
     const row = document.createElement("div");
     row.className = "bubble-row user";
+
     const bubble = document.createElement("div");
     bubble.className = "bubble";
+
     const span = document.createElement("span");
     span.className = "bubble-text";
     span.textContent = text;
     bubble.appendChild(span);
+
+    const meta = document.createElement("div");
+    meta.className = "bubble-meta";
+
+    const time = document.createElement("span");
+    time.className = "bubble-time";
+    time.textContent = formatMessageTime();
+
+    const receipt = document.createElement("span");
+    receipt.className = "bubble-receipt";
+    receipt.textContent = "✓✓";
+
+    meta.appendChild(time);
+    meta.appendChild(receipt);
+    bubble.appendChild(meta);
+
     row.appendChild(bubble);
     messagesEl.appendChild(row);
     scrollToBottom();
@@ -259,6 +350,11 @@
   function appendCharacterBubble(text, withVoice) {
     const row = document.createElement("div");
     row.className = "bubble-row character";
+
+    const avatar = document.createElement("div");
+    avatar.className = "bubble-avatar";
+    avatar.textContent = getCharacterAvatar(activeCharacter);
+
     const bubble = document.createElement("div");
     bubble.className = "bubble";
 
@@ -267,37 +363,95 @@
     span.textContent = text;
     bubble.appendChild(span);
 
+    const meta = document.createElement("div");
+    meta.className = "bubble-meta";
+
+    const time = document.createElement("span");
+    time.className = "bubble-time";
+    time.textContent = formatMessageTime();
+    meta.appendChild(time);
+    bubble.appendChild(meta);
+
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+
     let voiceBtn = null;
     if (withVoice) {
+      const voiceRow = document.createElement("div");
+      voiceRow.className = "bubble-row character voice-row";
+
+      const voiceAvatar = document.createElement("div");
+      voiceAvatar.className = "bubble-avatar";
+      voiceAvatar.textContent = getCharacterAvatar(activeCharacter);
+
+      const voiceBubble = document.createElement("div");
+      voiceBubble.className = "voice-bubble";
+
       voiceBtn = document.createElement("button");
       voiceBtn.className = "voice-icon";
-      voiceBtn.textContent = "🔊";
+      voiceBtn.dataset.voiceLabel = "▶─────────────── 0:07";
+      voiceBtn.textContent = voiceBtn.dataset.voiceLabel;
       voiceBtn.title = "Play voice";
       voiceBtn.addEventListener("click", () => {
         playVoice(activeCharacter.id, text, voiceBtn);
       });
-      bubble.appendChild(voiceBtn);
+
+      const voiceMeta = document.createElement("div");
+      voiceMeta.className = "bubble-meta";
+      const voiceTime = document.createElement("span");
+      voiceTime.className = "bubble-time";
+      voiceTime.textContent = formatMessageTime();
+      voiceMeta.appendChild(voiceTime);
+
+      voiceBubble.appendChild(voiceBtn);
+      voiceBubble.appendChild(voiceMeta);
+      voiceRow.appendChild(voiceAvatar);
+      voiceRow.appendChild(voiceBubble);
+      messagesEl.appendChild(voiceRow);
     }
 
-    row.appendChild(bubble);
-    messagesEl.appendChild(row);
     scrollToBottom();
     return voiceBtn;
   }
 
+  // Simplified typing indicator — immediate append, no internal delay
   function appendTypingIndicator() {
     const row = document.createElement("div");
     row.className = "typing-row";
+
+    const avatar = document.createElement("div");
+    avatar.className = "bubble-avatar";
+    avatar.textContent = getCharacterAvatar(activeCharacter);
+
     const bubble = document.createElement("div");
     bubble.className = "typing-bubble";
+
+    const dots = document.createElement("div");
+    dots.className = "typing-dots";
     for (let i = 0; i < 3; i++) {
       const dot = document.createElement("div");
       dot.className = "typing-dot";
-      bubble.appendChild(dot);
+      dots.appendChild(dot);
     }
+
+    const label = document.createElement("span");
+    label.className = "typing-text";
+    label.textContent = `${(activeCharacter && activeCharacter.name) || "Character"} is typing...`;
+
+    const meta = document.createElement("div");
+    meta.className = "bubble-meta typing-meta";
+    meta.textContent = formatMessageTime();
+
+    bubble.appendChild(dots);
+    bubble.appendChild(label);
+    bubble.appendChild(meta);
+
+    row.appendChild(avatar);
     row.appendChild(bubble);
     messagesEl.appendChild(row);
     scrollToBottom();
+
     return row;
   }
 
@@ -314,6 +468,7 @@
   }
 
   /* ---------- Sequential bubble reveal ---------- */
+  // Restore sane pacing — one delay per bubble (700-1200ms)
   async function revealBubblesSequentially(bubbles, autoVoice) {
     const hasVoice = !!(activeCharacter && activeCharacter.has_voice);
     let lastVoiceBtn = null;
@@ -321,7 +476,7 @@
 
     for (let i = 0; i < bubbles.length; i++) {
       const typingRow = appendTypingIndicator();
-      const delay = 700 + Math.random() * 500; // 700-1200ms
+      const delay = 700 + Math.random() * 500; // 700-1200ms — feels natural, not slow
       await wait(delay);
       removeTypingIndicator(typingRow);
 
@@ -362,13 +517,48 @@
       btn.textContent = "⏸";
       btn.classList.add("playing");
     } else {
-      btn.textContent = "🔊";
+      btn.textContent = btn.dataset.voiceLabel || "▶─────────────── 0:07";
     }
   }
 
   function fillerFileFor(characterId, index) {
     const suffix = language === "en" ? "e" + index : String(index);
     return `audio/${characterId}_filler_${suffix}.mp3`;
+  }
+
+  function appendFillerBubble(characterId) {
+    try {
+      const row = document.createElement("div");
+      row.className = "bubble-row character filler-row";
+
+      const avatar = document.createElement("div");
+      avatar.className = "bubble-avatar";
+      avatar.textContent = getCharacterAvatar(characterId);
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble filler-bubble";
+
+      const span = document.createElement("span");
+      span.className = "bubble-text filler-text";
+      span.textContent = "(audio)…";
+      bubble.appendChild(span);
+
+      const meta = document.createElement("div");
+      meta.className = "bubble-meta";
+      const time = document.createElement("span");
+      time.className = "bubble-time";
+      time.textContent = formatMessageTime();
+      meta.appendChild(time);
+      bubble.appendChild(meta);
+
+      row.appendChild(avatar);
+      row.appendChild(bubble);
+      messagesEl.appendChild(row);
+      scrollToBottom();
+      return row;
+    } catch (e) {
+      return null;
+    }
   }
 
   async function playVoice(characterId, text, btn) {
@@ -379,18 +569,29 @@
     let fillerAudio = null;
     let fillerTimer = null;
     let fillerStarted = false;
+    let fillerRow = null;
 
-    // Schedule filler audio if the real response is slow.
+    // Schedule filler audio if the real response is slow. Delay increased to 2-4s.
+    const fillerDelay = 2000 + Math.floor(Math.random() * 2000); // 2000-4000ms
     fillerTimer = setTimeout(() => {
       if (myTicket !== voiceTicket) return; // superseded already
-      const idx = 1 + Math.floor(Math.random() * 2); // pick filler 1 or 2
+      const available = FILLER_INDICES[characterId] || [1, 2];
+      const idx = available[Math.floor(Math.random() * available.length)];
       const fillerSrc = fillerFileFor(characterId, idx);
       fillerAudio = new Audio(fillerSrc);
+
+      // Append a subtle filler bubble so filler audio appears as a separate message.
+      try {
+        fillerRow = appendFillerBubble(characterId);
+      } catch (e) {
+        /* ignore UI failures */
+      }
+
       fillerAudio.play().catch(() => {
         /* filler file may not exist locally — ignore */
       });
       fillerStarted = true;
-    }, 800);
+    }, fillerDelay);
 
     function cancelFiller() {
       clearTimeout(fillerTimer);
@@ -401,6 +602,10 @@
           /* ignore */
         }
         fillerAudio = null;
+      }
+      // mark filler UI as ended (optional) — leave it visible as a separate message
+      if (fillerRow && fillerRow.parentNode) {
+        fillerRow.classList.add("filler-ended");
       }
     }
 
@@ -421,11 +626,7 @@
       } catch (e) {
         cancelFiller();
         // Only reset this button if it's still the most recent request for it.
-        if (myTicket === voiceTicket) {
-          setIconState(btn, "idle");
-        } else {
-          setIconState(btn, "idle");
-        }
+        setIconState(btn, "idle");
         return; // silent fallback to text-only
       }
     }
