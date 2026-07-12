@@ -4,4 +4,4 @@ __pycache__/
 *.md
 __init__.py
 logs/
-frontend/static/
+frontend/audio/

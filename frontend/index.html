@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FandomDial</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- LEFT SIDEBAR -->
+    <div id="sidebar">
+      <div id="sidebar-header">
+        <div id="my-profile" title="Edit your profile">
+          <img id="my-avatar" src="" alt="" />
+          <span id="my-name">You</span>
+        </div>
+        <span id="app-title">FandomDial</span>
+        <button id="settings-btn" title="Profile settings">⚙️</button>
+      </div>
+      <div id="contact-list"><!-- populated dynamically --></div>
+    </div>
+
+    <!-- RIGHT CHAT WINDOW -->
+    <div id="chat-window">
+      <div id="empty-state">
+        <p>Select a character to start chatting</p>
+      </div>
+
+      <div id="chat-active" class="hidden">
+        <div id="chat-header">
+          <span id="chat-character-name"></span>
+          <button id="lang-toggle" title="Toggle language">EN</button>
+        </div>
+        <div id="messages"></div>
+        <div id="input-bar">
+          <input id="text-input" type="text" placeholder="Type a message" autocomplete="off" />
+          <button id="send-btn">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROFILE SETTINGS MODAL -->
+  <div id="profile-modal" class="hidden">
+    <div id="profile-modal-box">
+      <h2>Your Profile</h2>
+      <div id="profile-avatar-preview-wrap">
+        <img id="profile-avatar-preview" src="" alt="" />
+        <label for="avatar-input" id="avatar-input-label">Change photo</label>
+        <input type="file" id="avatar-input" accept="image/*" hidden />
+      </div>
+      <label for="name-input">Display name</label>
+      <input type="text" id="name-input" maxlength="30" placeholder="Your name" />
+      <div id="profile-modal-actions">
+        <button id="profile-cancel-btn">Cancel</button>
+        <button id="profile-save-btn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
